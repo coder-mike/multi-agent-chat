@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-Agent AI Chat App</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #1e1e1e;
+      padding: 10px;
+    }
+
+    #top-bar input,
+    #top-bar button {
+      margin-left: 10px;
+    }
+
+    #scenario {
+      display: flex;
+      flex: 1;
+    }
+
+    #left-panel {
+      width: 300px;
+      background-color: #2e2e2e;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    #main {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #conversation {
+      flex: 1;
+      background-color: #121212;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .message {
+      border: 1px solid #444;
+      margin-bottom: 10px;
+      padding: 5px;
+      border-radius: 5px;
+    }
+
+    .header-bar {
+      font-weight: bold;
+    }
+
+    #footer {
+      background-color: #1e1e1e;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid #444;
+    }
+
+    #footer div {
+      margin-bottom: 10px;
+    }
+
+    #footer label {
+      margin-right: 5px;
+    }
+
+    #footer input,
+    #footer select,
+    #footer textarea {
+      margin-right: 10px;
+      padding: 5px;
+      background-color: #2e2e2e;
+      border: 1px solid #444;
+      color: #e0e0e0;
+    }
+
+    #footer button {
+      padding: 5px;
+      background-color: #444;
+      border: none;
+      color: #e0e0e0;
+      cursor: pointer;
+    }
+
+    #footer button:hover {
+      background-color: #555;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="top-bar">
+    <span contenteditable="true" id="scenario-title">Scenario Name</span>
+    <div>
+      <button onclick="createNewScenario()">New Scenario</button>
+      <button onclick="cloneScenario()">Clone Scenario</button>
+      <input type="text" id="api-key" placeholder="API Key">
+    </div>
+  </div>
+
+  <div id="scenario">
+    <div id="left-panel">
+      <h3>Scenario Configuration</h3>
+      <label for="temperature">Temperature:</label>
+      <input type="number" id="temperature" min="0" max="1" step="0.1">
+      <br><br>
+      <label for="max-tokens">Max Tokens:</label>
+      <input type="number" id="max-tokens">
+      <br><br>
+      <h3>Agents</h3>
+      <div id="agents">
+        <!-- Agents will be dynamically added here -->
+      </div>
+      <button onclick="addAgent()">Add Agent</button>
+    </div>
+
+    <div id="main">
+
+      <div id="conversation">
+        <h3>Conversation</h3>
+        <div id="messages">
+          <!-- Messages will be dynamically added here -->
+        </div>
+      </div>
+
+      <div id="footer">
+        <div>
+          <label for="from">From:</label>
+          <input type="text" id="from" placeholder="From">
+          <button onclick="setFrom('none')">None</button>
+          <!-- Buttons for each agent will be dynamically added here -->
+          <span id="from-buttons"></span>
+        </div>
+        <div>
+          <label for="to">To:</label>
+          <input type="text" id="to" placeholder="To">
+          <button onclick="setTo('all')">All</button>
+          <!-- Buttons for each agent will be dynamically added here -->
+          <span id="to-buttons"></span>
+        </div>
+        <div>
+          <label for="as">As:</label>
+          <select id="as">
+            <option value="user">User</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+        <div>
+          <label for="content">Content:</label>
+          <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
+        </div>
+        <button onclick="addMessage()">Add Message</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let scenario = {
+      agents: [],
+      conversation: [],
+      temperature: undefined,
+      maxTokens: undefined
+    };
+
+    document.getElementById('scenario-title').addEventListener('input', function () {
+      scenario.title = this.innerText;
+    });
+
+    function createNewScenario() {
+      scenario = { agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
+      renderScenario();
+    }
+
+    function cloneScenario() {
+      const clonedScenario = JSON.parse(JSON.stringify(scenario));
+      clonedScenario.title = scenario.title + ' - copy';
+      scenario = clonedScenario;
+      renderScenario();
+    }
+
+    function addAgent() {
+      const agent = { name: '', role: 'user', systemPrompt: '', trailingSystemPrompt: '' };
+      scenario.agents.push(agent);
+      renderScenario();
+    }
+
+    function renderScenario() {
+      document.getElementById('scenario-title').innerText = scenario.title || 'Scenario Name';
+      document.getElementById('temperature').value = scenario.temperature || '';
+      document.getElementById('max-tokens').value = scenario.maxTokens || '';
+
+      const agentsDiv = document.getElementById('agents');
+      agentsDiv.innerHTML = '';
+      scenario.agents.forEach((agent, index) => {
+        const agentDiv = document.createElement('div');
+        agentDiv.classList.add('agent');
+        agentDiv.innerHTML = `
+                <label for="agent-name-${index}">Name:</label>
+                <input type="text" id="agent-name-${index}" value="${agent.name}" oninput="updateAgent(${index}, 'name', this.value)">
+                <br><br>
+                <label for="agent-role-${index}">Role:</label>
+                <select id="agent-role-${index}" onchange="updateAgent(${index}, 'role', this.value)">
+                    <option value="user" ${agent.role === 'user' ? 'selected' : ''}>User</option>
+                    <option value="system" ${agent.role === 'system' ? 'selected' : ''}>System</option>
+                </select>
+                <br><br>
+                <label for="agent-system-prompt-${index}">System Prompt:</label>
+                <textarea id="agent-system-prompt-${index}" oninput="updateAgent(${index}, 'systemPrompt', this.value)">${agent.systemPrompt}</textarea>
+                <br><br>
+                <label for="agent-trailing-system-prompt-${index}">Trailing System Prompt:</label>
+                <textarea id="agent-trailing-system-prompt-${index}" oninput="updateAgent(${index}, 'trailingSystemPrompt', this.value)">${agent.trailingSystemPrompt}</textarea>
+                <br><br>
+            `;
+        agentsDiv.appendChild(agentDiv);
+      });
+
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+      scenario.conversation.forEach(message => {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+        messageDiv.style.backgroundColor = message.color || '#444';
+        messageDiv.innerHTML = `
+                <div class="header-bar">${message.from || 'System'} to ${message.to ? message.to.join(', ') : 'All'} as ${message.as || 'user'}</div>
+                <div>${message.content}</div>
+            `;
+        messagesDiv.appendChild(messageDiv);
+      });
+
+      renderFooterButtons();
+    }
+
+    function updateAgent(index, field, value) {
+      scenario.agents[index][field] = value;
+    }
+
+    function renderFooterButtons() {
+      const fromButtonsDiv = document.getElementById('from-buttons');
+      const toButtonsDiv = document.getElementById('to-buttons');
+      fromButtonsDiv.innerHTML = '';
+      toButtonsDiv.innerHTML = '';
+
+      scenario.agents.forEach(agent => {
+        const fromButton = document.createElement('button');
+        fromButton.textContent = agent.name;
+        fromButton.onclick = () => setFrom(agent.name);
+        fromButtonsDiv.appendChild(fromButton);
+
+        const toButton = document.createElement('button');
+        toButton.textContent = agent.name;
+        toButton.onclick = () => setTo(agent.name);
+        toButtonsDiv.appendChild(toButton);
+      });
+    }
+
+    function setFrom(value) {
+      document.getElementById('from').value = value;
+    }
+
+    function setTo(value) {
+      document.getElementById('to').value = value;
+    }
+
+    function addMessage() {
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value ? document.getElementById('to').value.split(',').map(v => v.trim()) : undefined;
+      const as = document.getElementById('as').value;
+      const content = document.getElementById('content').value;
+
+      const message = { from: from || undefined, to: to || undefined, as, content };
+      scenario.conversation.push(message);
+      renderScenario();
+      clearFooterFields();
+    }
+
+    function clearFooterFields() {
+      document.getElementById('from').value = '';
+      document.getElementById('to').value = '';
+      document.getElementById('as').value = 'user';
+      document.getElementById('content').value = '';
+    }
+
+    // Initial render
+    renderScenario();
+
+  </script>
+</body>
+
+</html>

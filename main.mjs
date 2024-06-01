@@ -15,8 +15,6 @@ const openai = new OpenAI({
  *
  * Agents always see their own messages presented as "assistant" messages, but
  * messages from other agents can appear either as "user" or "system" messages.
- * This allows us to have agents that actually represent the system itself, such
- * as world-building agents.
  *
  * Users always see messages they've sent, but they will only see messages from
  * other agents if those messages are intended for them. This is specifically
