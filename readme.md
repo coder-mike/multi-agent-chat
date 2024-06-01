@@ -4,7 +4,10 @@ CLI app to run multiple AI agents to chat with each other or with you.
 
 ## Install
 
-Clone repo and `npm install`.
+- Clone repo
+- `npm install`
+- Make a `.env` file with `OPENAI_API_KEY=...` with your OpenAI API key.
+
 
 ## Usage
 
@@ -16,7 +19,7 @@ This will let `{next speaker}` take a turn to speak, and append the new message 
 
 If no {next speaker} is specified, the next speaker will be the agent who spoke longest ago, so they will take turns.
 
-The scenario file contains both the setup and conversation. Look at [example-scenario.json](example-scenario.json) for an example of a scenario.
+The scenario file contains both the setup and conversation. Look at [example-scenario.json](example-scenario.json) for an example of a scenario. If your scenario file references [scenario-schema.json](scenario-schema.json) as the schema, your editor may give you auto-completion and explanation of the fields.
 
 The script only runs a single turn, with the expectation that the user may want to intervene by modifying the conversation themselves before the next turn. You might do this if you want to interact with the agents (add your own messages), shape the conversation by modifying the agent's responses, etc.
 
