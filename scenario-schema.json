@@ -48,20 +48,10 @@
             "description": "The sender of the message"
           },
           "to": {
-            "oneOf": [
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "List of recipients"
-              },
-              {
-                "type": "string",
-                "enum": ["all"],
-                "description": "Message to all agents"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "description": "The recipients of the message. If omitted, the message is sent to all agents."
           },
           "as": {
