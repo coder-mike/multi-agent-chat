@@ -74,34 +74,41 @@
     }
 
     #footer div {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-}
-#footer label {
-    margin-right: 5px;
-}
-#footer input, #footer select, #footer textarea {
-    margin-right: 10px;
-    padding: 5px;
-    background-color: #2e2e2e;
-    border: 1px solid #444;
-    color: #e0e0e0;
-}
-#footer button {
-    padding: 5px;
-    background-color: #444;
-    border: none;
-    color: #e0e0e0;
-    cursor: pointer;
-}
-#footer button:hover {
-    background-color: #555;
-}
-#footer textarea {
-    flex: 1;
-    margin-right: 0;
-}
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    #footer label {
+      margin-right: 5px;
+    }
+
+    #footer input,
+    #footer select,
+    #footer textarea {
+      margin-right: 10px;
+      padding: 5px;
+      background-color: #2e2e2e;
+      border: 1px solid #444;
+      color: #e0e0e0;
+    }
+
+    #footer button {
+      padding: 5px;
+      background-color: #444;
+      border: none;
+      color: #e0e0e0;
+      cursor: pointer;
+    }
+
+    #footer button:hover {
+      background-color: #555;
+    }
+
+    #footer textarea {
+      flex: 1;
+      margin-right: 0;
+    }
   </style>
 </head>
 
@@ -142,27 +149,27 @@
 
       <div id="footer">
         <div>
-            <label for="from">From:</label>
-            <input type="text" id="from" placeholder="From">
-            <button onclick="setFrom('none')">None</button>
-            <span id="from-buttons"></span>
+          <label for="from">From:</label>
+          <input type="text" id="from" placeholder="From">
+          <button onclick="setFrom('none')">None</button>
+          <span id="from-buttons"></span>
         </div>
         <div>
-            <label for="to">To:</label>
-            <input type="text" id="to" placeholder="To">
-            <button onclick="setTo('all')">All</button>
-            <span id="to-buttons"></span>
+          <label for="to">To:</label>
+          <input type="text" id="to" placeholder="To">
+          <button onclick="setTo('all')">All</button>
+          <span id="to-buttons"></span>
         </div>
         <div>
-            <label for="as">As:</label>
-            <select id="as">
-                <option value="user">User</option>
-                <option value="system">System</option>
-            </select>
+          <label for="as">As:</label>
+          <select id="as">
+            <option value="user">User</option>
+            <option value="system">System</option>
+          </select>
         </div>
         <div style="flex: 1; display: flex; align-items: center;">
-            <label for="content">Content:</label>
-            <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
+          <label for="content">Content:</label>
+          <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
         </div>
         <button onclick="addMessage()">Add Message</button>
       </div>
@@ -170,36 +177,66 @@
   </div>
 
   <script>
-    let scenario = {
-      agents: [],
-      conversation: [],
-      temperature: undefined,
-      maxTokens: undefined
-    };
+    /**
+     * Set of functions to call when the scenario variable changes
+     * @type {Function[]}
+     */
+    const onScenarioChanged = [];
+
+    function scenarioChanged() {
+      for (const fn of onScenarioChanged) { fn(); }
+    }
+
+    const scenarioList = localStorage.getItem('scenario-list')
+      ? JSON.parse(localStorage.getItem('scenario-list'))
+      : [];
+
+      // Load scenario from local-storage if available
+    let scenario = localStorage.getItem('selected-scenario') && localStorage.getItem(`scenario-${localStorage.getItem('selected-scenario')}`)
+      ? JSON.parse(localStorage.getItem(`scenario-${localStorage.getItem('selected-scenario')}`))
+      : newScenario();
+
+    onScenarioChanged.push(function save() {
+      localStorage.setItem(`scenario-${scenario.id}`, JSON.stringify(scenario));
+      localStorage.setItem('selected-scenario', scenario.id);
+      const scenarioList = localStorage.getItem('scenario-list')
+        ? JSON.parse(localStorage.getItem('scenario-list'))
+        : [];
+      if (!scenarioList.includes(scenario.id)) {
+        scenarioList.push(scenario.id);
+        localStorage.setItem('scenario-list', JSON.stringify(scenarioList));
+      }
+    });
 
     document.getElementById('scenario-title').addEventListener('input', function () {
       scenario.title = this.innerText;
     });
 
     function createNewScenario() {
-      scenario = { agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
-      renderScenario();
+      scenario = newScenario();
+      scenarioChanged();
+    }
+
+    function newScenario() {
+      // Random ID
+      const id = Math.random().toString(36).substring(7) + Date.now();
+      return { id, agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
     }
 
     function cloneScenario() {
       const clonedScenario = JSON.parse(JSON.stringify(scenario));
       clonedScenario.title = scenario.title + ' - copy';
       scenario = clonedScenario;
-      renderScenario();
+      scenarioChanged();
     }
 
     function addAgent() {
       const agent = { name: '', role: 'user', systemPrompt: '', trailingSystemPrompt: '' };
       scenario.agents.push(agent);
-      renderScenario();
+      scenarioChanged();
     }
 
-    function renderScenario() {
+    onScenarioChanged.push(function renderScenario() {
       document.getElementById('scenario-title').innerText = scenario.title || 'Scenario Name';
       document.getElementById('temperature').value = scenario.temperature || '';
       document.getElementById('max-tokens').value = scenario.maxTokens || '';
@@ -241,15 +278,14 @@
             `;
         messagesDiv.appendChild(messageDiv);
       });
-
-      renderFooterButtons();
-    }
+    });
 
     function updateAgent(index, field, value) {
       scenario.agents[index][field] = value;
+      scenarioChanged();
     }
 
-    function renderFooterButtons() {
+    onScenarioChanged.push(function renderFooterButtons() {
       const fromButtonsDiv = document.getElementById('from-buttons');
       const toButtonsDiv = document.getElementById('to-buttons');
       fromButtonsDiv.innerHTML = '';
@@ -266,7 +302,7 @@
         toButton.onclick = () => setTo(agent.name);
         toButtonsDiv.appendChild(toButton);
       });
-    }
+    });
 
     function setFrom(value) {
       document.getElementById('from').value = value;
@@ -284,7 +320,7 @@
 
       const message = { from: from || undefined, to: to || undefined, as, content };
       scenario.conversation.push(message);
-      renderScenario();
+      scenarioChanged();
       clearFooterFields();
     }
 
@@ -296,7 +332,7 @@
     }
 
     // Initial render
-    renderScenario();
+    scenarioChanged();
 
   </script>
 </body>
