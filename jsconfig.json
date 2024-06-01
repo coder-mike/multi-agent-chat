@@ -6,5 +6,5 @@
     "moduleResolution": "Node16",
     "strict": true
   },
-  "include": ["main.mjs"]
+  "include": ["main.mjs", "index.html"]
 }
