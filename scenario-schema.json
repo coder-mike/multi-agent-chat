@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scenario",
+  "type": "object",
+  "properties": {
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the agent"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["system", "user"],
+            "description": "The role of the agent"
+          },
+          "systemPrompt": {
+            "type": "string",
+            "description": "System prompt shown at the beginning of the conversation"
+          },
+          "trailingSystemPrompt": {
+            "type": "string",
+            "description": "System prompt shown at the end of the conversation, normally for reminders to the agent about things that get forgotten from the main system prompt over long conversations."
+          }
+        },
+        "required": ["name", "role", "systemPrompt"]
+      },
+      "description": "Agents who automatically participate in the conversation"
+    },
+    "temperature": {
+      "type": "number",
+      "description": "The temperature of the conversation"
+    },
+    "maxTokens": {
+      "type": "number",
+      "description": "The maximum number of tokens for each message"
+    },
+    "conversation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The sender of the message"
+          },
+          "to": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of recipients"
+              },
+              {
+                "type": "string",
+                "enum": ["all"],
+                "description": "Message to all agents"
+              }
+            ],
+            "description": "The recipients of the message. If omitted, the message is sent to all agents."
+          },
+          "as": {
+            "type": "string",
+            "enum": ["user", "system"],
+            "description": "How the message is presented"
+          },
+          "content": {
+            "type": "string",
+            "description": "The content of the message"
+          }
+        },
+        "required": ["content"]
+      },
+      "description": "List of messages in the conversation"
+    }
+  },
+  "required": ["agents", "conversation"]
+}
