@@ -142,29 +142,27 @@
 
       <div id="footer">
         <div>
-          <label for="from">From:</label>
-          <input type="text" id="from" placeholder="From">
-          <button onclick="setFrom('none')">None</button>
-          <!-- Buttons for each agent will be dynamically added here -->
-          <span id="from-buttons"></span>
+            <label for="from">From:</label>
+            <input type="text" id="from" placeholder="From">
+            <button onclick="setFrom('none')">None</button>
+            <span id="from-buttons"></span>
         </div>
         <div>
-          <label for="to">To:</label>
-          <input type="text" id="to" placeholder="To">
-          <button onclick="setTo('all')">All</button>
-          <!-- Buttons for each agent will be dynamically added here -->
-          <span id="to-buttons"></span>
+            <label for="to">To:</label>
+            <input type="text" id="to" placeholder="To">
+            <button onclick="setTo('all')">All</button>
+            <span id="to-buttons"></span>
         </div>
         <div>
-          <label for="as">As:</label>
-          <select id="as">
-            <option value="user">User</option>
-            <option value="system">System</option>
-          </select>
+            <label for="as">As:</label>
+            <select id="as">
+                <option value="user">User</option>
+                <option value="system">System</option>
+            </select>
         </div>
-        <div>
-          <label for="content">Content:</label>
-          <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
+        <div style="flex: 1; display: flex; align-items: center;">
+            <label for="content">Content:</label>
+            <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
         </div>
         <button onclick="addMessage()">Add Message</button>
       </div>
