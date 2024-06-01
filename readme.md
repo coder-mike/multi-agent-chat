@@ -25,7 +25,7 @@ If no {next speaker} is specified, the next speaker will be the agent who spoke 
 
 The script only runs a single turn, with the expectation that the user may want to intervene by modifying the conversation themselves before the next turn. You might do this if you want to interact with the agents (add your own messages), shape the conversation by modifying the agent's responses, etc.
 
-There's also a rendered `md` file as output as well, but please not that this is not the source of truth. It's just a pretty rendering of the JSON file. If you want to manipulate the conversation, you need to do it in the json file.
+There's also a rendered `.md` file as output. This is just a pretty rendering of the JSON file. If you want to manipulate the conversation, you need to do it in the json file, not the md file.
 
 
 ## Conversation Model
