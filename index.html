@@ -238,8 +238,8 @@
       return {
         id,
         name,
-        temperature: undefined,
-        maxTokens: undefined,
+        temperature: 0.5,
+        maxTokens: 500,
         agents: [],
         conversation: [],
         newMessage: {},
@@ -318,6 +318,9 @@
               <option id="agent-role-${i}-option-system"value="system">System</option>
             </select>
             <br><br>
+            <label for="agent-color-${i}">Bubble background color:</label>
+            <input type="color" id="agent-color-${i}" name="colorPicker">
+            <br><br>
             <label for="agent-system-prompt-${i}">System Prompt:</label>
             <textarea id="agent-system-prompt-${i}" oninput="updateAgent(${i}, 'systemPrompt', this.value)">${agent.systemPrompt}</textarea>
             <br><br>
@@ -347,6 +350,11 @@
             scenarioChanged();
           });
 
+          agentDiv.querySelector(`#agent-color-${i}`).addEventListener('input', function () {
+            scenario.agents[i].color = this.value || undefined;
+            scenarioChanged();
+          });
+
           agentsDiv.appendChild(agentDiv);
         }
 
@@ -357,6 +365,7 @@
         agentDiv.querySelector(`#agent-role-${i}-option-system`).selected = agent.role === 'system';
         agentDiv.querySelector(`#agent-system-prompt-${i}`).value = agent.systemPrompt;
         agentDiv.querySelector(`#agent-trailing-system-prompt-${i}`).value = agent.trailingSystemPrompt;
+        agentDiv.querySelector(`#agent-color-${i}`).value = agent.color || undefined;
       }
 
       // Delete extra agents (e.g. when switching scenarios with different numbers of agents)
@@ -378,7 +387,6 @@
           messageDiv = document.createElement('div');
           messageDiv.id = divId;
           messageDiv.classList.add('message');
-          messageDiv.style.backgroundColor = message.color || '#444';
           messagesDiv.appendChild(messageDiv);
 
           const headerBarDiv = document.createElement('div');
@@ -406,6 +414,15 @@
             message.as === 'system' ? ' as "system" role' : ''
           }`;
         messageDiv.querySelector(`#message-content-${i}`).textContent = message.content;
+
+        const sourceAgent = scenario.agents.find(agent => agent.name === message.from);
+        if (sourceAgent && sourceAgent.color) {
+          messageDiv.style.backgroundColor = sourceAgent.color;
+        } else if (message.as === 'system') {
+          messageDiv.style.backgroundColor = '#333';
+        } else {
+          messageDiv.style.backgroundColor = '#444';
+        }
       }
 
       // Delete extra messages (e.g. when switching scenarios with different numbers of messages)
@@ -499,6 +516,13 @@
     document.getElementById('content').addEventListener('input', function () {
       scenario.newMessage.content = this.value || undefined;
       scenarioChanged();
+    });
+    document.getElementById('content').addEventListener('keydown', function (e) {
+      // Shift+Enter to add new line, Enter to add message
+      if (e.key === 'Enter' && !e.shiftKey) {
+        addMessage();
+        e.preventDefault();
+      }
     });
     onScenarioChanged.push(function renderContent() {
       document.getElementById('content').value = scenario.newMessage.content || '';
