@@ -565,9 +565,10 @@
     async function addMessage() {
       if (!scenario.newMessage.content) {
         try {
-          const agent = scenario.agents.find(agent => agent.name === scenario.newMessage.from);
+          agent = scenario.agents.find(agent => agent.name === scenario.newMessage.from);
           if (!agent) {
             agent = nextAgentsTurn(scenario);
+            scenario.newMessage.from = agent.name;
           }
           scenario.newMessage.content = await generateResponse(
             scenario.conversation,

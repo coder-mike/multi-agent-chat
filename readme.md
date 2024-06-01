@@ -2,12 +2,17 @@
 
 CLI app to run multiple AI agents to chat with each other or with you.
 
-## Install
+
+## Experimental UI
+
+If you just open `index.html` in a browser, it runs an experimental UI-based app that has basically the same functionality as the CLI app represented below. `index.html` is stand-alone and does not require a server to run. However, the CLI below is more complete and gives you more control since you can directly edit the JSON.
+
+
+## Install (CLI)
 
 - Clone repo
 - `npm install`
 - Make a `.env` file with `OPENAI_API_KEY=...` with your OpenAI API key.
-
 
 ## Usage
 
