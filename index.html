@@ -214,6 +214,26 @@
       }
     });
 
+    // ------------------------------- API Key -------------------------------
+
+    document.getElementById('api-key').value = localStorage.getItem('api-key');
+    updateApiKeyColor();
+
+    document.getElementById('api-key').addEventListener('input', function () {
+      localStorage.setItem('api-key', this.value);
+      updateApiKeyColor();
+    });
+
+    function updateApiKeyColor() {
+      const apiKey = document.getElementById('api-key');
+      if (apiKey.value && apiKey.value.length > 30) { // 30 is not an exact figure but just guards typing rubbish
+        apiKey.style.outline = null;
+      } else {
+        apiKey.style.outline = '5px solid red';
+      }
+    }
+
+
     // ------------------------------- Title Bar ------------------------------
 
     document.getElementById('scenario-title').addEventListener('input', function () {
