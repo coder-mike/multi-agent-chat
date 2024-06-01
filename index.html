@@ -65,6 +65,10 @@
       font-weight: bold;
     }
 
+    #footer button.selected {
+      background-color: #555;
+    }
+
     #footer {
       background-color: #1e1e1e;
       padding: 10px;
@@ -149,20 +153,20 @@
 
       <div id="footer">
         <div>
-          <label for="from">From:</label>
-          <input type="text" id="from" placeholder="From">
-          <button onclick="setFrom('none')">None</button>
+          <label for="from-input">From:</label>
+          <input type="text" id="from-input" placeholder="No one">
+          <button id="from-none-button">None</button>
           <span id="from-buttons"></span>
         </div>
         <div>
-          <label for="to">To:</label>
-          <input type="text" id="to" placeholder="To">
-          <button onclick="setTo('all')">All</button>
+          <label for="to-input">To:</label>
+          <input type="text" id="to-input" placeholder="All">
+          <button id="to-all-button">All</button>
           <span id="to-buttons"></span>
         </div>
         <div>
-          <label for="as">As:</label>
-          <select id="as">
+          <label for="as-input">As:</label>
+          <select id="as-input">
             <option value="user">User</option>
             <option value="system">System</option>
           </select>
@@ -171,7 +175,7 @@
           <label for="content">Content:</label>
           <textarea id="content" placeholder="Leave blank to auto-generate"></textarea>
         </div>
-        <button onclick="addMessage()">Add Message</button>
+        <button id="add-message-button">Add Message</button>
       </div>
     </div>
   </div>
@@ -193,7 +197,7 @@
       ? JSON.parse(localStorage.getItem('scenario-list'))
       : [];
 
-      // Load scenario from local-storage if available
+    // Load scenario from local-storage if available
     let scenario = localStorage.getItem('selected-scenario') && localStorage.getItem(`scenario-${localStorage.getItem('selected-scenario')}`)
       ? JSON.parse(localStorage.getItem(`scenario-${localStorage.getItem('selected-scenario')}`))
       : newScenario();
@@ -231,7 +235,15 @@
 
       // Unique name (it doesn't need to be unique but it's good for the user if it is)
       const name = uniqueScenarioNameBasedOn('Scenario');
-      return { id, name, agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
+      return {
+        id,
+        name,
+        temperature: undefined,
+        maxTokens: undefined,
+        agents: [],
+        conversation: [],
+        newMessage: {},
+      };
     }
 
     function uniqueScenarioNameBasedOn(name) {
@@ -279,7 +291,8 @@
       document.getElementById('max-tokens').value = scenario.maxTokens || '';
     });
 
-    // Agents
+    // ------------------------------- Agent Config -------------------------------
+
     document.getElementById('add-agent-button').addEventListener('click', () => {
       const agent = { name: '', role: 'user', systemPrompt: '', trailingSystemPrompt: '' };
       scenario.agents.push(agent);
@@ -288,11 +301,12 @@
     onScenarioChanged.push(function renderAgents() {
       const agentsDiv = document.getElementById('agents');
 
-      for (const agent of scenario.agents) {
+      for (const [i, agent] of scenario.agents.entries()) {
         const divId = `agent-${scenario.agents.indexOf(agent)}`;
         let agentDiv = document.getElementById(divId);
         if (!agentDiv) {
           agentDiv = document.createElement('div');
+          agentDiv.id = divId;
           agentDiv.classList.add('agent');
           agentDiv.innerHTML = `
             <label for="agent-name-${i}">Name:</label>
@@ -314,22 +328,22 @@
 
           // Bind events
           agentDiv.querySelector(`#agent-name-${i}`).addEventListener('input', function () {
-            agent.name = this.value;
+            scenario.agents[i].name = this.value;
             scenarioChanged();
           });
 
           agentDiv.querySelector(`#agent-role-${i}`).addEventListener('change', function () {
-            agent.role = this.value;
+            scenario.agents[i].role = this.value;
             scenarioChanged();
           });
 
           agentDiv.querySelector(`#agent-system-prompt-${i}`).addEventListener('input', function () {
-            agent.systemPrompt = this.value;
+            scenario.agents[i].systemPrompt = this.value;
             scenarioChanged();
           });
 
           agentDiv.querySelector(`#agent-trailing-system-prompt-${i}`).addEventListener('input', function () {
-            agent.trailingSystemPrompt = this.value;
+            scenario.agents[i].trailingSystemPrompt = this.value;
             scenarioChanged();
           });
 
@@ -344,70 +358,170 @@
         agentDiv.querySelector(`#agent-system-prompt-${i}`).value = agent.systemPrompt;
         agentDiv.querySelector(`#agent-trailing-system-prompt-${i}`).value = agent.trailingSystemPrompt;
       }
+
+      // Delete extra agents (e.g. when switching scenarios with different numbers of agents)
+      for (let i = scenario.agents.length; i < agentsDiv.children.length; i++) {
+        agentsDiv.removeChild(agentsDiv.children[i]);
+      }
     });
 
+    // ------------------------------- Conversation -------------------------------
 
     onScenarioChanged.push(function renderScenario() {
-      document.getElementById('max-tokens').value = scenario.maxTokens || '';
-
       const messagesDiv = document.getElementById('messages');
-      messagesDiv.innerHTML = '';
-      scenario.conversation.forEach(message => {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message');
-        messageDiv.style.backgroundColor = message.color || '#444';
-        messageDiv.innerHTML = `
-                <div class="header-bar">${message.from || 'System'} to ${message.to ? message.to.join(', ') : 'All'} as ${message.as || 'user'}</div>
-                <div>${message.content}</div>
-            `;
-        messagesDiv.appendChild(messageDiv);
-      });
+
+      // Create/update messages
+      for (const [i, message] of scenario.conversation.entries()) {
+        const divId = `message-${i}`;
+        let messageDiv = document.getElementById(divId);
+        if (!messageDiv) {
+          messageDiv = document.createElement('div');
+          messageDiv.id = divId;
+          messageDiv.classList.add('message');
+          messageDiv.style.backgroundColor = message.color || '#444';
+          messagesDiv.appendChild(messageDiv);
+
+          const headerBarDiv = document.createElement('div');
+          headerBarDiv.id = `message-header-bar-${i}`;
+          headerBarDiv.classList.add('header-bar');
+          messageDiv.appendChild(headerBarDiv);
+
+          const contentDiv = document.createElement('div');
+          contentDiv.id = `message-content-${i}`;
+          // Make content-editable
+          contentDiv.contentEditable = true;
+          contentDiv.addEventListener('input', function () {
+            scenario.conversation[i].content = this.innerText;
+            scenarioChanged();
+          });
+          messageDiv.appendChild(contentDiv);
+        }
+
+        // Update
+        messageDiv.querySelector(`#message-header-bar-${i}`).textContent = `${
+          message.from ?? '<anonymous>'
+          }${
+            !message.to ? '' : ` to ${[message.to].flat().join(', ')}`
+          }${
+            message.as === 'system' ? ' as "system" role' : ''
+          }`;
+        messageDiv.querySelector(`#message-content-${i}`).textContent = message.content;
+      }
+
+      // Delete extra messages (e.g. when switching scenarios with different numbers of messages)
+      for (let i = scenario.conversation.length; i < messagesDiv.children.length; i++) {
+        messagesDiv.removeChild(messagesDiv.children[i]);
+      }
     });
 
-    onScenarioChanged.push(function renderFooterButtons() {
-      const fromButtonsDiv = document.getElementById('from-buttons');
-      const toButtonsDiv = document.getElementById('to-buttons');
-      fromButtonsDiv.innerHTML = '';
-      toButtonsDiv.innerHTML = '';
+    // ------------------------------- Footer (New-message panel) -------------------------------
 
-      scenario.agents.forEach(agent => {
+    // From
+    document.getElementById('from-input').addEventListener('input', function () {
+      scenario.newMessage.from = this.value || undefined;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderFrom() {
+      document.getElementById('from-input').value = scenario.newMessage.from || '';
+      if (!scenario.newMessage.from) {
+        document.getElementById('from-none-button').classList.add('selected');
+      } else {
+        document.getElementById('from-none-button').classList.remove('selected');
+      }
+    });
+    document.getElementById('from-none-button').addEventListener('click', function () {
+      scenario.newMessage.from = undefined;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderFromButtons() {
+      const fromButtonsDiv = document.getElementById('from-buttons');
+      fromButtonsDiv.innerHTML = '';
+      for (const agent of scenario.agents) {
         const fromButton = document.createElement('button');
         fromButton.textContent = agent.name;
-        fromButton.onclick = () => setFrom(agent.name);
+        fromButton.classList.add('from-button');
+        if (scenario.newMessage.from === agent.name) {
+          fromButton.classList.add('selected');
+        }
+        fromButton.onclick = () => {
+          scenario.newMessage.from = agent.name;
+          scenarioChanged();
+        };
         fromButtonsDiv.appendChild(fromButton);
-
-        const toButton = document.createElement('button');
-        toButton.textContent = agent.name;
-        toButton.onclick = () => setTo(agent.name);
-        toButtonsDiv.appendChild(toButton);
-      });
+      }
     });
 
-    function setFrom(value) {
-      document.getElementById('from').value = value;
-    }
+    // To
+    document.getElementById('to-input').addEventListener('input', function () {
+      scenario.newMessage.to = this.value ? this.value.split(',').map(v => v.trim()) : undefined;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderTo() {
+      document.getElementById('to-input').value = scenario.newMessage.to ? scenario.newMessage.to.join(', ') : '';
+      if (!scenario.newMessage.to) {
+        document.getElementById('to-all-button').classList.add('selected');
+      } else {
+        document.getElementById('to-all-button').classList.remove('selected');
+      }
+    });
+    document.getElementById('to-all-button').addEventListener('click', function () {
+      scenario.newMessage.to = undefined;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderToButtons() {
+      const toButtonsDiv = document.getElementById('to-buttons');
+      toButtonsDiv.innerHTML = '';
+      for (const agent of scenario.agents) {
+        const toButton = document.createElement('button');
+        toButton.textContent = agent.name;
+        toButton.classList.add('to-button');
+        if (scenario.newMessage.to && scenario.newMessage.to.includes(agent.name)) {
+          toButton.classList.add('selected');
+        }
+        toButton.onclick = () => {
+          scenario.newMessage.to = [agent.name];
+          scenarioChanged();
+        };
+        toButtonsDiv.appendChild(toButton);
+      }
+    });
 
-    function setTo(value) {
-      document.getElementById('to').value = value;
-    }
+    // As
+    document.getElementById('as-input').addEventListener('change', function () {
+      scenario.newMessage.as = this.value === 'user' ? undefined : this.value;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderAs() {
+      document.getElementById('as-input').value = scenario.newMessage.as || 'user';
+    });
+
+    // Content
+    document.getElementById('content').addEventListener('input', function () {
+      scenario.newMessage.content = this.value || undefined;
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderContent() {
+      document.getElementById('content').value = scenario.newMessage.content || '';
+    });
+
+    // Add-message button
+    document.getElementById('add-message-button').addEventListener('click', addMessage);
+    onScenarioChanged.push(function renderAddMessage() {
+      if (scenario.newMessage.content) {
+        document.getElementById('add-message-button').textContent = 'Add';
+      } else {
+        document.getElementById('add-message-button').textContent = 'Generate';
+      }
+    });
 
     function addMessage() {
-      const from = document.getElementById('from').value;
-      const to = document.getElementById('to').value ? document.getElementById('to').value.split(',').map(v => v.trim()) : undefined;
-      const as = document.getElementById('as').value;
-      const content = document.getElementById('content').value;
-
-      const message = { from: from || undefined, to: to || undefined, as, content };
-      scenario.conversation.push(message);
+      if (!scenario.newMessage.content) {
+        // Generate message
+        scenario.newMessage.content = 'This is a generated message';
+      }
+      scenario.conversation.push(scenario.newMessage);
+      scenario.newMessage = {};
       scenarioChanged();
-      clearFooterFields();
-    }
-
-    function clearFooterFields() {
-      document.getElementById('from').value = '';
-      document.getElementById('to').value = '';
-      document.getElementById('as').value = 'user';
-      document.getElementById('content').value = '';
     }
 
     // Initial render
