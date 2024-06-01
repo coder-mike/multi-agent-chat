@@ -135,7 +135,7 @@
       <div id="agents">
         <!-- Agents will be dynamically added here -->
       </div>
-      <button onclick="addAgent()">Add Agent</button>
+      <button id="add-agent-button">Add Agent</button>
     </div>
 
     <div id="main">
@@ -187,7 +187,9 @@
       for (const fn of onScenarioChanged) { fn(); }
     }
 
-    const scenarioList = localStorage.getItem('scenario-list')
+    // -------------------------------- Storage -------------------------------
+
+    let scenarioList = localStorage.getItem('scenario-list')
       ? JSON.parse(localStorage.getItem('scenario-list'))
       : [];
 
@@ -199,7 +201,7 @@
     onScenarioChanged.push(function save() {
       localStorage.setItem(`scenario-${scenario.id}`, JSON.stringify(scenario));
       localStorage.setItem('selected-scenario', scenario.id);
-      const scenarioList = localStorage.getItem('scenario-list')
+      scenarioList = localStorage.getItem('scenario-list')
         ? JSON.parse(localStorage.getItem('scenario-list'))
         : [];
       if (!scenarioList.includes(scenario.id)) {
@@ -208,8 +210,15 @@
       }
     });
 
+    // ------------------------------- Title Bar ------------------------------
+
     document.getElementById('scenario-title').addEventListener('input', function () {
-      scenario.title = this.innerText;
+      scenario.name = this.innerText;
+      scenarioChanged();
+    });
+
+    onScenarioChanged.push(function renderTitle() {
+      document.getElementById('scenario-title').innerText = scenario.name || 'Scenario Name';
     });
 
     function createNewScenario() {
@@ -218,53 +227,128 @@
     }
 
     function newScenario() {
-      // Random ID
-      const id = Math.random().toString(36).substring(7) + Date.now();
-      return { id, agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
+      const id = newScenarioId();
+
+      // Unique name (it doesn't need to be unique but it's good for the user if it is)
+      const name = uniqueScenarioNameBasedOn('Scenario');
+      return { id, name, agents: [], conversation: [], temperature: undefined, maxTokens: undefined };
+    }
+
+    function uniqueScenarioNameBasedOn(name) {
+      const nameTaken = name => scenarioList.some(scenarioId => {
+        if (!localStorage.getItem(`scenario-${scenarioId}`)) return false;
+        const scenario = JSON.parse(localStorage.getItem(`scenario-${scenarioId}`));
+        return scenario.name === name;
+      });
+      let suffix = undefined;
+      while (nameTaken(name + (suffix ? ` ${suffix}` : ''))) {
+        suffix = suffix ? suffix + 1 : 1;
+      }
+      return name + (suffix ? ` ${suffix}` : '');
     }
 
     function cloneScenario() {
       const clonedScenario = JSON.parse(JSON.stringify(scenario));
-      clonedScenario.title = scenario.title + ' - copy';
+      clonedScenario.id = newScenarioId();
+      clonedScenario.name = uniqueScenarioNameBasedOn(scenario.name + ' - copy');
       scenario = clonedScenario;
       scenarioChanged();
     }
 
-    function addAgent() {
+    function newScenarioId() {
+      return Math.random().toString(36).substring(7) + Date.now();
+    }
+
+    // ------------------------------- Scenario Config -------------------------------
+
+    // Temperature
+    document.getElementById('temperature').addEventListener('input', function () {
+      scenario.temperature = parseFloat(this.value);
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderTemperature() {
+      document.getElementById('temperature').value = scenario.temperature || '';
+    });
+
+    // Max Tokens
+    document.getElementById('max-tokens').addEventListener('input', function () {
+      scenario.maxTokens = parseInt(this.value);
+      scenarioChanged();
+    });
+    onScenarioChanged.push(function renderMaxTokens() {
+      document.getElementById('max-tokens').value = scenario.maxTokens || '';
+    });
+
+    // Agents
+    document.getElementById('add-agent-button').addEventListener('click', () => {
       const agent = { name: '', role: 'user', systemPrompt: '', trailingSystemPrompt: '' };
       scenario.agents.push(agent);
       scenarioChanged();
-    }
+    });
+    onScenarioChanged.push(function renderAgents() {
+      const agentsDiv = document.getElementById('agents');
+
+      for (const agent of scenario.agents) {
+        const divId = `agent-${scenario.agents.indexOf(agent)}`;
+        let agentDiv = document.getElementById(divId);
+        if (!agentDiv) {
+          agentDiv = document.createElement('div');
+          agentDiv.classList.add('agent');
+          agentDiv.innerHTML = `
+            <label for="agent-name-${i}">Name:</label>
+            <input type="text" id="agent-name-${i}">
+            <br><br>
+            <label for="agent-role-${i}">Role:</label>
+            <select id="agent-role-${i}">
+              <option id="agent-role-${i}-option-user" value="user">User</option>
+              <option id="agent-role-${i}-option-system"value="system">System</option>
+            </select>
+            <br><br>
+            <label for="agent-system-prompt-${i}">System Prompt:</label>
+            <textarea id="agent-system-prompt-${i}" oninput="updateAgent(${i}, 'systemPrompt', this.value)">${agent.systemPrompt}</textarea>
+            <br><br>
+            <label for="agent-trailing-system-prompt-${i}">Trailing System Prompt:</label>
+            <textarea id="agent-trailing-system-prompt-${i}" oninput="updateAgent(${i}, 'trailingSystemPrompt', this.value)">${agent.trailingSystemPrompt}</textarea>
+            <br><br>
+          `;
+
+          // Bind events
+          agentDiv.querySelector(`#agent-name-${i}`).addEventListener('input', function () {
+            agent.name = this.value;
+            scenarioChanged();
+          });
+
+          agentDiv.querySelector(`#agent-role-${i}`).addEventListener('change', function () {
+            agent.role = this.value;
+            scenarioChanged();
+          });
+
+          agentDiv.querySelector(`#agent-system-prompt-${i}`).addEventListener('input', function () {
+            agent.systemPrompt = this.value;
+            scenarioChanged();
+          });
+
+          agentDiv.querySelector(`#agent-trailing-system-prompt-${i}`).addEventListener('input', function () {
+            agent.trailingSystemPrompt = this.value;
+            scenarioChanged();
+          });
+
+          agentsDiv.appendChild(agentDiv);
+        }
+
+        // Keep fields up to date
+        agentDiv.querySelector(`#agent-name-${i}`).value = agent.name;
+        agentDiv.querySelector(`#agent-role-${i}`).value = agent.role;
+        agentDiv.querySelector(`#agent-role-${i}-option-user`).selected = agent.role === 'user';
+        agentDiv.querySelector(`#agent-role-${i}-option-system`).selected = agent.role === 'system';
+        agentDiv.querySelector(`#agent-system-prompt-${i}`).value = agent.systemPrompt;
+        agentDiv.querySelector(`#agent-trailing-system-prompt-${i}`).value = agent.trailingSystemPrompt;
+      }
+    });
+
 
     onScenarioChanged.push(function renderScenario() {
-      document.getElementById('scenario-title').innerText = scenario.title || 'Scenario Name';
-      document.getElementById('temperature').value = scenario.temperature || '';
       document.getElementById('max-tokens').value = scenario.maxTokens || '';
-
-      const agentsDiv = document.getElementById('agents');
-      agentsDiv.innerHTML = '';
-      scenario.agents.forEach((agent, index) => {
-        const agentDiv = document.createElement('div');
-        agentDiv.classList.add('agent');
-        agentDiv.innerHTML = `
-                <label for="agent-name-${index}">Name:</label>
-                <input type="text" id="agent-name-${index}" value="${agent.name}" oninput="updateAgent(${index}, 'name', this.value)">
-                <br><br>
-                <label for="agent-role-${index}">Role:</label>
-                <select id="agent-role-${index}" onchange="updateAgent(${index}, 'role', this.value)">
-                    <option value="user" ${agent.role === 'user' ? 'selected' : ''}>User</option>
-                    <option value="system" ${agent.role === 'system' ? 'selected' : ''}>System</option>
-                </select>
-                <br><br>
-                <label for="agent-system-prompt-${index}">System Prompt:</label>
-                <textarea id="agent-system-prompt-${index}" oninput="updateAgent(${index}, 'systemPrompt', this.value)">${agent.systemPrompt}</textarea>
-                <br><br>
-                <label for="agent-trailing-system-prompt-${index}">Trailing System Prompt:</label>
-                <textarea id="agent-trailing-system-prompt-${index}" oninput="updateAgent(${index}, 'trailingSystemPrompt', this.value)">${agent.trailingSystemPrompt}</textarea>
-                <br><br>
-            `;
-        agentsDiv.appendChild(agentDiv);
-      });
 
       const messagesDiv = document.getElementById('messages');
       messagesDiv.innerHTML = '';
@@ -279,11 +363,6 @@
         messagesDiv.appendChild(messageDiv);
       });
     });
-
-    function updateAgent(index, field, value) {
-      scenario.agents[index][field] = value;
-      scenarioChanged();
-    }
 
     onScenarioChanged.push(function renderFooterButtons() {
       const fromButtonsDiv = document.getElementById('from-buttons');
